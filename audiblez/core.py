@@ -30,12 +30,6 @@ from pick import pick
 sample_rate = 24000
 
 
-def load_spacy():
-    if not spacy.util.is_package("xx_ent_wiki_sm"):
-        print("Downloading Spacy model xx_ent_wiki_sm...")
-        spacy.cli.download("xx_ent_wiki_sm")
-
-
 def set_espeak_library():
     """Find the espeak library path"""
     try:
@@ -72,7 +66,6 @@ def set_espeak_library():
 def main(file_path, voice, pick_manually, speed, output_folder='.',
          max_chapters=None, max_sentences=None, selected_chapters=None, post_event=None):
     if post_event: post_event('CORE_STARTED')
-    load_spacy()
     if output_folder != '.':
         Path(output_folder).mkdir(parents=True, exist_ok=True)
 
@@ -191,17 +184,23 @@ def print_selected_chapters(document_chapters, chapters):
 
 
 def gen_audio_segments(pipeline, text, voice, speed, stats=None, max_sentences=None, post_event=None):
-    nlp = spacy.load('xx_ent_wiki_sm')
-    nlp.add_pipe('sentencizer')
+    # 简单的句子分割，不使用spaCy模型
+    import re
+    
+    # 使用正则表达式分割句子
+    sentences = re.split(r'(?<=[.!?])\s+', text)
+    sentences = [s.strip() for s in sentences if s.strip()]
+    
     audio_segments = []
-    doc = nlp(text)
-    sentences = list(doc.sents)
-    for i, sent in enumerate(sentences):
-        if max_sentences and i > max_sentences: break
-        for gs, ps, audio in pipeline(sent.text, voice=voice, speed=speed, split_pattern=r'\n\n\n'):
+    
+    if max_sentences:
+        sentences = sentences[:max_sentences]
+    
+    for sent in sentences:
+        for gs, ps, audio in pipeline(sent, voice=voice, speed=speed, split_pattern=r'\n\n\n'):
             audio_segments.append(audio)
         if stats:
-            stats.processed_chars += len(sent.text)
+            stats.processed_chars += len(sent)
             stats.progress = stats.processed_chars * 100 // stats.total_chars
             stats.eta = strfdelta((stats.total_chars - stats.processed_chars) / stats.chars_per_sec)
             if post_event: post_event('CORE_PROGRESS', stats=stats)
@@ -213,7 +212,6 @@ def gen_audio_segments(pipeline, text, voice, speed, stats=None, max_sentences=N
 def gen_text(text, voice='af_heart', output_file='text.wav', speed=1, play=False):
     lang_code = voice[:1]
     pipeline = KPipeline(lang_code=lang_code)
-    load_spacy()
     audio_segments = gen_audio_segments(pipeline, text, voice=voice, speed=speed);
     final_audio = np.concatenate(audio_segments)
     soundfile.write(output_file, final_audio, sample_rate)
@@ -384,3 +382,12 @@ def unmark(text):
     __md = Markdown(output_format="plain")
     __md.stripTopLevelTags = False
     return __md.convert(text)
+
+
+def load_ebooklib():
+    try:
+        import ebooklib
+        return True
+    except ImportError:
+        print("Error: Required dependencies not installed.")
+        return False

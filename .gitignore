@@ -6,7 +6,6 @@ chapters.txt
 *.pyc
 *.wav
 *.mp3
-*.epub
 *.sh
 *.json
 *.onnx

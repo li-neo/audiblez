@@ -486,7 +486,6 @@ class MainWindow(wx.Frame):
             import audiblez.core as core
             from kokoro import KPipeline
             pipeline = KPipeline(lang_code=lang_code)
-            core.load_spacy()
             text = self.selected_chapter.extracted_text[:300]
             if len(text) == 0: return
             audio_segments = core.gen_audio_segments(
